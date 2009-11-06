@@ -12,8 +12,8 @@
 
 
 //#define NONE    0
-#define BLUE    1
-#define PINK    2
+#define BLUE    0
+#define PINK    1
 //#define ALL     3
 
 #define LEDs   16
@@ -43,11 +43,23 @@ volatile struct t_port LED[16] = { {&DDRD, &PORTD, PD0},
                                    {&DDRC, &PORTC, PC2},
                                    {&DDRC, &PORTC, PC3} };
 
+/* timer values for the different dimm levels */
+volatile const uint16_t dimmLevel[16] = {0x0001, 0x1000, 0x2000, 0x3000,
+                                         0x4000, 0x5000, 0x6000, 0x7000,
+                                         0x8000, 0x9000, 0xA000, 0xB000,
+                                         0xC000, 0xD000, 0xE000, 0xFFF0};
+
 /* define Pins to select Color */
 volatile struct t_port COLOR[2] = { {&DDRC, &PORTC, PC0}, {&DDRC, &PORTC, PC1} };
 
-/* Status for each LED,  initialize with NONE */
-volatile uint8_t status[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+/* Status for each LED,  Bit 0-3 = BLUE  4-7 = PINK*/
+volatile uint8_t LedStatus[16] = {  0xFF, 0x0F, 0xF0, 0xFF, 
+                                    0xFF, 0x0F, 0xF0, 0xFF,
+                                    0xFF, 0x0F, 0xF0, 0xFF,
+                                    0xFF, 0x0F, 0xF0, 0xFF };
+
+/*  */
+volatile uint8_t currLED = 0;
 
 
 
@@ -66,10 +78,11 @@ int main(void) {
     TEST_Run(2);  
     TEST_Blink(2);  
 
-    OCR1A =  0x000A;
+    OCR1A = 0x0000;
+    OCR1B = 0x0000;
     TCCR1A = 0x00;
-    TCCR1B = (1<<CS12) | (1<<WGM12); // 256    // | (1<<CS10) Prescaler 1024
-    TIMSK = (1<<OCIE1A);
+    TCCR1B = (1<<CS10);  /* no prescaler; normal operating mode */
+    TIMSK = (1<<OCIE1A) | (1<<OCIE1B) | (1<<TOIE1); /* Enable both compare and the overflow interrupt */
     sei();
 
     while(1) {
@@ -83,21 +96,34 @@ int main(void) {
 
 
 
+/* Interrupt to controll dimm level of the first(BLUE) color */
 ISR(TIMER1_COMPA_vect) {
-    static char curr;
-    char c;
-    
-    *COLOR[curr].PORT &=~ (1<<COLOR[curr].Pin);
-    *LED[curr].PORT &=~ (1<<LED[curr].Pin);
- 
-    curr++;
-    if (curr >= LEDs) {
-        curr = 0;
-    }
-   
-    *COLOR[curr].PORT |= (1<<COLOR[curr].Pin);
-    *LED[curr].PORT |= (1<<LED[curr].Pin);
-    
+    *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
+}
+
+
+
+/* Interrupt to controll dimm level of the second(PINK) color */
+ISR(TIMER1_COMPB_vect) {
+    *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
+}
+
+
+/* Interrupt to reset the old ports and select the new ports */
+ISR(TIMER1_OVF_vect) {
+    *LED[currLED].PORT &=~ (1<<LED[currLED].Pin);
+    *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
+    *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
+
+    currLED++;
+    if (currLED >= LEDs) currLED = 0;
+
+    OCR1A = dimmLevel[(LedStatus[currLED] & 0x0F)];
+    OCR1B = dimmLevel[((LedStatus[currLED]>>4) & 0x0F)];
+
+    *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
+    *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
+    *LED[currLED].PORT |= (1<<LED[currLED].Pin);
 }
 
 

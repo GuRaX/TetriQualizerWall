@@ -19,6 +19,8 @@
 #define LEDs    16
 #define COLORs  2
 
+#define TIMER_START 155
+
 struct t_port {
     uint8_t *DDR;
     uint8_t *PORT;
@@ -44,21 +46,13 @@ volatile struct t_port LED[16] = { {&DDRD, &PORTD, PD0},
                                    {&DDRC, &PORTC, PC3} };
 
 /* timer values for the different dimm levels */
-volatile const uint16_t dimmLevel[16] = {0x0001, 0x0100, 0x0200, 0x0300,
-                                         0x0400, 0x0500, 0x0600, 0x0700,
-                                         0x0800, 0x0900, 0x0A00, 0x0B00,
-                                         0x0C00, 0x0D00, 0x0E00, 0x0FF0};
+volatile const uint8_t dimmLevel[16] = { 99, 97, 91, 85, 78, 72, 66, 50,
+                                         44, 37, 31, 25, 18, 12,  6,  0 };
 
 /* define Pins to select Color */
 volatile struct t_port COLOR[2] = { {&DDRC, &PORTC, PC0}, {&DDRC, &PORTC, PC1} };
 
-/* Status for each LED,  Bit 0-3 = BLUE  4-7 = PINK*/
-volatile uint8_t LedStatus[16] = {  0xFF, 0x0F, 0xF0, 0xFF, 
-                                    0xFF, 0x0F, 0xF0, 0xFF,
-                                    0xFF, 0x0F, 0xF0, 0xFF,
-                                    0xFF, 0x0F, 0xF0, 0xFF };
-
-/*  */
+volatile uint8_t LedStatus[16] = {  0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 volatile uint8_t currLED = 0;
 
 
@@ -74,18 +68,24 @@ void TEST_Run(char count);
 int main(void) {
     configurePins();
 
-    TEST_Blink(2);
-    TEST_Run(2);  
-    TEST_Blink(2);  
+    TEST_Blink(4);
+    //TEST_Run(2);  
+    //TEST_Blink(2);  
 
-    OCR1A = 0x0000;
-    OCR1B = 0x0000;
-    TCCR1A = 0x00;
-    TCCR1B = (1<<CS11);  /* no prescaler; normal operating mode */
-    TIMSK = (1<<OCIE1A) | (1<<OCIE1B) | (1<<TOIE1); /* Enable both compare and the overflow interrupt */
+    *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
+    
+    TCNT0 = TIMER_START;
+    TIMSK |= (1<<TOIE0);
+    TCCR0 |= (1<<CS01) | (1<<CS00);
+
     sei();
 
     while(1) {
+        char i;
+        _delay_ms(200);
+        for (i=0; i<LEDs; i++) {
+            if (++LedStatus[i] >= 15) LedStatus[i] = 0;
+        }
     }
 
 }
@@ -95,46 +95,33 @@ int main(void) {
 /******************************************************************************/
 
 
+ISR(TIMER0_OVF_vect) {
+    static cLed;
+    static cCol;
+    
+    *LED[cLed].PORT &=~ (1<<LED[cLed].Pin);
+    if (++cLed >= LEDs) {
+        cLed = 0;
+    }
+    if (dimmLevel[ LedStatus[cLed] ] != 0) *LED[cLed].PORT |= (1<<LED[cLed].Pin);
+    TCNT0 = TIMER_START + dimmLevel[ LedStatus[cLed] ];
+}
 
 /* Interrupt to controll dimm level of the first(BLUE) color */
+/*
 ISR(TIMER1_COMPA_vect) {
-    static char status;
-    if (status == 0) {
-        *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
-        status = 1;
-        OCR1A = 0x0FFF;
-    } else {
     *LED[currLED].PORT &=~ (1<<LED[currLED].Pin);
-    *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
-    *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
 
     currLED++;
     if (currLED >= LEDs) currLED = 0;
 
     OCR1A = dimmLevel[(LedStatus[currLED] & 0x0F)];
-    OCR1B = dimmLevel[((LedStatus[currLED]>>4) & 0x0F)];
 
-    status = 0;
+    if ( OCR1A != 0 )*LED[currLED].PORT |= (1<<LED[currLED].Pin);
     TCNT1 = 0x0000;
 
-    *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
-    *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
-    *LED[currLED].PORT |= (1<<LED[currLED].Pin);
-    }
 }
-
-
-
-/* Interrupt to controll dimm level of the second(PINK) color */
-ISR(TIMER1_COMPB_vect) {
-    *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
-}
-
-
-/* Interrupt to reset the old ports and select the new ports */
-ISR(TIMER1_OVF_vect) {
-}
-
+*/
 
 
 void configurePins(void) {
@@ -144,7 +131,7 @@ void configurePins(void) {
         *LED[i].DDR |= (1<< LED[i].Pin);
         *LED[i].PORT &=~ (1<< LED[i].Pin);
     }
-    /* set Color pins to output */
+    /* set all COLOR pins to output */
     for (i=0;i<COLORs;i++) {
         *COLOR[i].DDR |= (1<< COLOR[i].Pin);
         *COLOR[i].PORT &=~ (1<< COLOR[i].Pin);
@@ -164,34 +151,41 @@ void wait_sec(void){
 
 void TEST_Blink(char count) {
     char i;
-    for (i=0;i<LEDs;i++) {
-        *LED[i].PORT |= (1<< LED[i].Pin);
-    }
-
-    while(count != 0) {
-        *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
-        *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
-        _delay_ms(500);
-        *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
-        *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
-        _delay_ms(500);
+    *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
+    while(count) {
+        for (i=0;i<LEDs;i++) {
+            *LED[i].PORT |= (1<< LED[i].Pin);
+        }
+        _delay_ms(100);
+        for (i=0;i<LEDs;i++) {
+            *LED[i].PORT &=~ (1<<LED[i].Pin);
+        }
+        _delay_ms(100);
         count--;
     }
-
     *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
+    *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
+    while(count) {
+        for (i=0;i<LEDs;i++) {
+            *LED[i].PORT |= (1<< LED[i].Pin);
+        }
+        _delay_ms(100);
+        for (i=0;i<LEDs;i++) {
+            *LED[i].PORT &=~ (1<<LED[i].Pin);
+        }
+        _delay_ms(100);
+        count--;
+    }
     *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
 
-    for (i=0;i<LEDs;i++) {
-        *LED[i].PORT &=~ (1<< LED[i].Pin);
-    }
 }
 
 
 
 void TEST_Run(char count) {
     char i;
+    *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
     while(count != 0) {
-        *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
         for (i=0;i<LEDs;i++) {
             *LED[i].PORT |= (1<< LED[i].Pin);
             if (i==0) {
@@ -201,22 +195,9 @@ void TEST_Run(char count) {
             }
             _delay_ms(200);
         }
-        
-        *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);    
-        *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
-    
-        for (i=0;i<LEDs;i++) {
-            *LED[i].PORT |= (1<< LED[i].Pin);
-            if (i==0) {
-                *LED[LEDs-1].PORT &=~ (1<< LED[LEDs-1].Pin);
-            } else {
-                *LED[i-1].PORT &=~ (1<< LED[i-1].Pin);
-            }
-            _delay_ms(200);
-        }
-        *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
         count--;
     }
+    *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
 }
 
 

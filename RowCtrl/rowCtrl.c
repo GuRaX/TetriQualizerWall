@@ -10,6 +10,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#define __OPTIMIZED__
 
 //#define NONE    0
 #define BLUE    0
@@ -82,7 +83,7 @@ int main(void) {
 
     while(1) {
         char i;
-        _delay_ms(200);
+        _delay_ms(100);
         for (i=0; i<LEDs; i++) {
             if (++LedStatus[i] >= 15) LedStatus[i] = 0;
         }
@@ -102,8 +103,23 @@ ISR(TIMER0_OVF_vect) {
     *LED[cLed].PORT &=~ (1<<LED[cLed].Pin);
     if (++cLed >= LEDs) {
         cLed = 0;
+        *COLOR[BLUE].PORT ^= (1<<COLOR[BLUE].Pin);
+        *COLOR[PINK].PORT ^= (1<<COLOR[PINK].Pin);
+/*
+        if (++cCol>=1) {
+            cCol = 0;
+            *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
+            *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
+        } else {
+            cCol = 1;
+            *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
+            *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
+        }
+*/
     }
-    if (dimmLevel[ LedStatus[cLed] ] != 0) *LED[cLed].PORT |= (1<<LED[cLed].Pin);
+    if (dimmLevel[ LedStatus[cLed] ] != 0) 
+        *LED[cLed].PORT |= (1<<LED[cLed].Pin);
+
     TCNT0 = TIMER_START + dimmLevel[ LedStatus[cLed] ];
 }
 

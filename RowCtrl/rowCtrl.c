@@ -10,11 +10,9 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#define __OPTIMIZED__
-
 //#define NONE    0
-#define BLUE    0
-#define PINK    1
+#define BLUE   0
+#define PINK   1
 //#define ALL     3
 
 #define LEDs    16
@@ -53,7 +51,7 @@ volatile const uint8_t dimmLevel[16] = { 99, 97, 91, 85, 78, 72, 66, 50,
 /* define Pins to select Color */
 volatile struct t_port COLOR[2] = { {&DDRC, &PORTC, PC0}, {&DDRC, &PORTC, PC1} };
 
-volatile uint8_t LedStatus[16] = {  0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
+volatile uint8_t LedStatus[16] = {  0xF0,0xE1,0xD2,0xC3,0xB4,0xA5,0x96,0x87,0x78,0x69,0x5A,0x4B,0x3C,0x2D,0x1E,0x0F };
 volatile uint8_t currLED = 0;
 
 
@@ -73,8 +71,6 @@ int main(void) {
     //TEST_Run(2);  
     //TEST_Blink(2);  
 
-    *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
-    
     TCNT0 = TIMER_START;
     TIMSK |= (1<<TOIE0);
     TCCR0 |= (1<<CS01) | (1<<CS00);
@@ -82,11 +78,14 @@ int main(void) {
     sei();
 
     while(1) {
+/*
         char i;
         _delay_ms(100);
         for (i=0; i<LEDs; i++) {
-            if (++LedStatus[i] >= 15) LedStatus[i] = 0;
+            
+            if (LedStatus[i] >= 15) LedStatus[i] = 0;
         }
+*/
     }
 
 }
@@ -97,47 +96,37 @@ int main(void) {
 
 
 ISR(TIMER0_OVF_vect) {
-    static cLed;
-    static cCol;
+    static char cLed;
+    static char cCol;
+    char dlvl;
     
     *LED[cLed].PORT &=~ (1<<LED[cLed].Pin);
-    if (++cLed >= LEDs) {
+    cLed++;
+    if (cLed >= LEDs) {
         cLed = 0;
-        *COLOR[BLUE].PORT ^= (1<<COLOR[BLUE].Pin);
-        *COLOR[PINK].PORT ^= (1<<COLOR[PINK].Pin);
-/*
-        if (++cCol>=1) {
-            cCol = 0;
+        if (cCol == 0) {
+            cCol = 1;
             *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
             *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
         } else {
-            cCol = 1;
+            cCol = 0;
             *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
             *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
         }
-*/
     }
-    if (dimmLevel[ LedStatus[cLed] ] != 0) 
+
+    if (cCol == 0) {
+        dlvl = dimmLevel[ (LedStatus[cLed] & 0x0F) ];
+    } else {
+        dlvl = dimmLevel[ (LedStatus[cLed] & 0xF0)>>4 ];
+    }
+
+    if (dlvl != 0) 
         *LED[cLed].PORT |= (1<<LED[cLed].Pin);
 
-    TCNT0 = TIMER_START + dimmLevel[ LedStatus[cLed] ];
+    TCNT0 = TIMER_START + dlvl;
 }
 
-/* Interrupt to controll dimm level of the first(BLUE) color */
-/*
-ISR(TIMER1_COMPA_vect) {
-    *LED[currLED].PORT &=~ (1<<LED[currLED].Pin);
-
-    currLED++;
-    if (currLED >= LEDs) currLED = 0;
-
-    OCR1A = dimmLevel[(LedStatus[currLED] & 0x0F)];
-
-    if ( OCR1A != 0 )*LED[currLED].PORT |= (1<<LED[currLED].Pin);
-    TCNT1 = 0x0000;
-
-}
-*/
 
 
 void configurePins(void) {

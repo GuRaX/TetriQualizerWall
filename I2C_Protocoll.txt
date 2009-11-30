@@ -1,0 +1,77 @@
+********************************************************************************
+* The I2C Protocol
+********************************************************************************
+
+/!\  This is NOT the final version  /!\
+
+The protocol sends the status of each LED to the RowControllers to display the 
+new graphic.
+
+    1.  Matrix organisation
+    1.  Row addressing
+    2.  I2C data structure
+
+
+
+*   1.  Matrix organisation
+********************************************************************************
+The beginning of the matrix is in the down left corner and starts with row zero
+and column zero so the first pixel is 0/0.   
+
+            | Col 0 | Col 1 | Col 2 | Col 3 | Col 4 | Col 5 | ... | Col m |
+    -----------------------------------------------------------------------
+     Row n  | (n/0) | (n/1) | (n/2) | (n/3) | (n/4) | (n/5) | ... | (n/m) |
+    -----------------------------------------------------------------------
+      ...   |  ...  |  ...  |  ...  |  ...  |  ...  |  ...  | ... |  ...  |
+    -----------------------------------------------------------------------
+     Row 4  | (4/0) | (4/1) | (4/2) | (4/3) | (4/4) | (4/5) | ... | (4/m) |
+    -----------------------------------------------------------------------
+     Row 3  | (3/0) | (3/1) | (3/2) | (3/3) | (3/4) | (3/5) | ... | (3/m) |
+    -----------------------------------------------------------------------
+     Row 2  | (2/0) | (2/1) | (2/2) | (2/3) | (2/4) | (2/5) | ... | (2/m) |
+    -----------------------------------------------------------------------
+     Row 1  | (1/0) | (1/1) | (1/2) | (1/3) | (1/4) | (1/5) | ... | (1/m) |
+    -----------------------------------------------------------------------
+     Row 0  | (0/0) | (0/1) | (0/2) | (0/3) | (0/4) | (0/5) | ... | (0/m) |
+    -----------------------------------------------------------------------
+
+ 
+
+*   2.  Row addressing
+********************************************************************************
+The address of the RowController is the row the controller controls.
+Here it is very important to remember that the first Bit(0) is used as 
+Read/Write Bit!! So we have to shift the address one bit to the left.
+Example:    Address for the RowController in row 5
+            char row = 5;
+            char rwBit = 0;
+            char addr = (row<<1) | rwBit;
+
+
+
+*   3.  I2C data structure
+********************************************************************************
+
+    
+    Byte 0 - AddressByte        
+        Bit     Description
+        7-1     I2C Address
+          0     R/W Bit (may not needed only W-Bit necessary)
+
+    Byte 1-n - LED data 0-n
+        Bit     Description
+        7-4     Dimmlevel of blue LED 0-15 (0=Off, 15=100% On)
+        3-0     Dimmlevel of pink LED 0-15 (0=Off, 15=100% On)
+
+
+
+
+
+
+
+
+
+
+
+
+

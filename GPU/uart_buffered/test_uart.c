@@ -20,7 +20,7 @@ DESCRIPTION:
 
 /* define CPU frequency in Mhz here if not defined in Makefile */
 #ifndef F_CPU
-#define F_CPU 4000000UL
+#define F_CPU 16000000UL
 #endif
 
 /* 9600 baud */
@@ -41,7 +41,7 @@ int main(void)
      *  or 
      *  UART_BAUD_SELECT_DOUBLE_SPEED() ( double speed mode)
      */
-    uart_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) ); 
+    uart1_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) ); 
     
     /*
      * now enable interrupt, since UART library is interrupt controlled
@@ -55,12 +55,12 @@ int main(void)
      *  uart_puts() blocks if it can not write the whole string to the circular 
      *  buffer
      */
-    uart_puts("String stored in SRAM\n");
+    uart1_puts("String stored in SRAM\n");
     
     /*
      * Transmit string from program memory to UART
      */
-    uart_puts_P("String stored in FLASH\n");
+    uart1_puts_P("String stored in FLASH\n");
     
         
     /* 
@@ -68,13 +68,13 @@ int main(void)
      * before transmitting via UART
      */     
     itoa( num, buffer, 10);   // convert interger into string (decimal format)         
-    uart_puts(buffer);        // and transmit string to UART
+    uart1_puts(buffer);        // and transmit string to UART
 
     
     /*
      * Transmit single character to UART
      */
-    uart_putc('\r');
+    uart1_putc('\r');
     
     for(;;)
     {
@@ -85,7 +85,8 @@ int main(void)
          * UART_NO_DATA is returned when no data is available.
          *
          */
-        c = uart_getc();
+        uart1_putc('-');
+        c = uart1_getc();
         if ( c & UART_NO_DATA )
         {
             /* 
@@ -118,12 +119,12 @@ int main(void)
                  * We are not reading the receive buffer fast enough,
                  * one or more received character have been dropped 
                  */
-                uart_puts_P("Buffer overflow error: ");
+                uart1_puts_P("Buffer overflow error: ");
             }
             /* 
              * send received character back
              */
-            uart_putc( (unsigned char)c );
+            uart1_putc( (unsigned char)c );
         }
     }
     

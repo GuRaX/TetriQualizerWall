@@ -10,6 +10,9 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#include "../GPU/config.h"
+
+/*
 //#define NONE    0
 #define BLUE   0
 #define PINK   1
@@ -17,6 +20,7 @@
 
 #define LEDs    16
 #define COLORs  2
+*/
 
 #define TIMER_START 155
 

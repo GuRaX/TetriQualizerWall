@@ -1,36 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#MCU = atmega128
-#F_CPU = 16000000
-#TARGET = gpu
-
-
-#hex:
-#	avr-objcopy -O ihex -R .eeprom $(TARGET).elf $(TARGET).hex
-
-#eeprom:
-#	avr-objcopy -j .eeprom --set-section-flags=.eeprom="alloc,load" \
-#	--change-section-lma .eeprom=0 --no-change-warnings -O ihex $(TARGET).elf $(TARGET).eep || exit 0
-
-
-
 # Hey Emacs, this is a -*- makefile -*-
 #----------------------------------------------------------------------------
 # WinAVR Makefile Template written by Eric B. Weddington, J�rg Wunsch, et al.
@@ -113,7 +80,7 @@ OBJDIR = .
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c hal/hal.c
+SRC = $(TARGET).c hal/hal.c /uart/uart.c i2c/twimaster.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)

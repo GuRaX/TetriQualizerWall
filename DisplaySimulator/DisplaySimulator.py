@@ -1,11 +1,7 @@
 #!/usr/bin/python
 
 import serial
-
-import gtk
-import gtk.gdk as gdk
-from threading import Thread, Lock
-
+import os
 
 COLS = 16
 ROWS = 24
@@ -13,93 +9,26 @@ PIXELSIZE = 10
 BORDER = 1
 
 
-class SerialCommunication(Thread):
-    def __init__(self, callback):
-        Thread.__init__(self)
-        self.ctrl = True
-        self.callback = callback
+color = (0.0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.47, 0.54, 0.63, 0.70, 0.77, 0.83, 0.89, 0.95, 1.0)
 
-    def run(self):
-        port = serial.Serial("/dev/ttyUSB0")
-        port.open()
-        while(self.ctrl):
-            line = port.read(18)
-            pos = line.find(chr(170))
-            line = "%s%s" % (line[pos:], line[:pos])
-#            print line
-            row = ord(line[1])
-            data = line[2:]
-#            print "%d:  %s" % (row/2, data)
-            gdk.threads_leave()
-            self.callback(row/2, data)
-            gdk.threads_enter()
-        port.close()
-
-    def close(self):
-        self.ctrl = False
+data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+port = serial.Serial("/dev/ttyUSB0", 38400)
+port.open()
+while(1):
+    line = port.read(18)
+    pos = line.find(chr(170))
+    line = "%s%s" % (line[pos:], line[:pos])
+    row = ord(line[1])/2  # /2 because address is shifted on to the left for I2C r/w bit
+    if (row == 0):
+        os.system(['clear','cls'][os.name == 'nt'])
+        print "      ___________________________________"
+    for i in range(16):
+        data[i] = "X" if (ord(line[i+2]) != 0) else " "
+    print " %2s:  | %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s |" % (row, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15])
+    if (row == 23):
+        print "      '---------------------------------'"
+port.close()
 
 
-class PyApp(gtk.Window):
-
-    def __init__(self):
-        super(PyApp, self).__init__()
-
-        self.color = (0.0, 0.07, 0.14, 0.21, 0.28, 0.35, 0.42, 0.47, 0.54, 0.63, 0.70, 0.77, 0.83, 0.89, 0.95, 1.0)
-        self.data = ((0,0,0,0,0,0,15,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,255,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0),
-                     (0,0,0,0,0,0,240,0,0,0,0,0,0,0,0,0) )
-
-        self.resize(COLS*PIXELSIZE, ROWS*PIXELSIZE)
-        self.connect("destroy", self.myApp_Quit)
-
-        area = gtk.DrawingArea()
-        area.connect("expose-event", self.expose)
-        self.add(area)
-        self.show_all()
-        self.worker = SerialCommunication(self.threadCall)
-        self.worker.start()
 
 
-    def threadCall(self, rowId, data):
-        print "Id: %d  Data: %s" % (rowId, data)
-
-
-    def myApp_Quit(self, obj):
-        self.worker.close()
-        gtk.main_quit()
-
-
-    def expose(self, widget, event):
-        cr = widget.window.cairo_create()
-        for c in range(COLS):
-            for r in range(ROWS):
-                red = self.data[r][c] & 0x0F
-                blue = (self.data[r][c] >> 4) & 0x0F
-                cr.set_source_rgb(self.color[red],0,self.color[blue])
-                cr.rectangle( c*PIXELSIZE + BORDER, r*PIXELSIZE + BORDER, PIXELSIZE-2*BORDER, PIXELSIZE-2*BORDER)
-                cr.fill()
-
-
-PyApp()
-gtk.main()

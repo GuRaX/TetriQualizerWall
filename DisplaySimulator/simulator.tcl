@@ -32,7 +32,7 @@ proc read_serial { } {
     set valINT [toASCII $val]
 
 
-    puts $val
+    puts $valINT
     
 #[toASCII $val]  
     
@@ -62,7 +62,7 @@ proc btn_start {} {
     global tty
     set tty [open /dev/ttyUSB0 r]
     puts "Open Port"
-    fconfigure $tty -mode 9600,n,8,1 -blocking 0 -buffering 18
+    fconfigure $tty -mode 9600,n,8,1 -blocking 0
     fileevent $tty readable {read_serial}
 }
 

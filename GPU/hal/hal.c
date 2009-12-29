@@ -22,7 +22,7 @@
  * 
  * @todo    Check relation between I2C and Uart1 speed !!
  ******************************************************************************/
-void init_hardware( char i2c_speed, char uart_speed ) 
+void init_hardware( char i2c_speed, uint16_t uart_speed ) 
 {
     /* initialize i2c for display communication */
 #ifdef DBG_I2C
@@ -31,7 +31,7 @@ void init_hardware( char i2c_speed, char uart_speed )
     
     /* initialize uart for debugging */
 #ifdef DBG_RS232
-    uart_init( CALC_BAUDRATE(9600 ,F_CPU) );
+    uart_init( CALC_BAUDRATE(uart_speed ,F_CPU) );
 #endif
 
     /* initialize IO Pins for NES Controllers */

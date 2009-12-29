@@ -54,7 +54,7 @@
 #define CTRL1_DATA  PA0
 #define CTRL2_DATA  PA3
 
-extern void init_hardware( char i2c_speed, char uart_speed );
+extern void init_hardware( char i2c_speed, uint16_t uart_speed );
 
 
 extern char set_row( char rowNr, char data[16] );  

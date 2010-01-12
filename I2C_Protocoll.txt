@@ -57,14 +57,32 @@ Example:    Address for the RowController in row 5
     
     Byte 0 - AddressByte        
         Bit     Description
-        7-1     I2C Address
           0     R/W Bit (may not needed only W-Bit necessary)
+        1-7     I2C Address
+        
 
-    Byte 1-n - LED data 0-n
+    Byte 1 - LED data 0
         Bit     Description
-        7-4     Dimmlevel of blue LED 0-15 (0=Off, 15=100% On)
-        3-0     Dimmlevel of pink LED 0-15 (0=Off, 15=100% On)
+        0, 1    LED 0, Blue
+        2, 3    LED 0, Pink
+        4, 5    LED 1, Blue
+        6, 7    LED 1, Pink
 
+    Byte 2 - LED data 1
+        Bit     Description
+        0, 1    LED 2, Blue
+        2, 3    LED 2, Pink
+        4, 5    LED 3, Blue
+        6, 7    LED 3, Pink
+    
+    ... and so on till ..
+
+    Byte 8 - LED data 7
+        Bit     Description
+        0, 1    LED 14, Blue
+        2, 3    LED 14, Pink
+        4, 5    LED 15, Blue
+        6, 7    LED 15, Pink
 
 
 *   3.  I2C data structure

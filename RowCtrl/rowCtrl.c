@@ -22,7 +22,7 @@
 #define COLORs  2
 */
 
-#define TIMER_START 155
+volatile uint8_t TIMER_START[COLORs] = {150,100}; //155
 
 struct t_port {
     uint8_t *DDR;
@@ -49,13 +49,14 @@ volatile struct t_port LED[16] = { {&DDRD, &PORTD, PD0},
                                    {&DDRC, &PORTC, PC3} };
 
 /* timer values for the different dimm levels */
-volatile const uint8_t dimmLevel[16] = { 99, 97, 91, 85, 78, 72, 66, 50,
-                                         44, 37, 31, 25, 18, 12,  6,  0 };
-
+/*volatile const uint8_t dimmLevel[16] = { 99, 97, 91, 85, 78, 72, 66, 50,
+                                         44, 37, 31, 25, 18, 12,  6,  0 };*/
+volatile const uint8_t dimmLevel[4] = { 0, 99, 50, 6 };
 /* define Pins to select Color */
 volatile struct t_port COLOR[2] = { {&DDRC, &PORTC, PC0}, {&DDRC, &PORTC, PC1} };
 
-volatile uint8_t LedStatus[16] = {  0xF0,0xE1,0xD2,0xC3,0xB4,0xA5,0x96,0x87,0x78,0x69,0x5A,0x4B,0x3C,0x2D,0x1E,0x0F };
+volatile uint8_t LedStatus[16] = { 0x03, 0x03, 0x12, 0x12, 0x21, 0x21, 0x30, 0x30,
+                                   0x30, 0x30, 0x21, 0x21, 0x12, 0x12, 0x03, 0x03};
 volatile uint8_t currLED = 0;
 
 
@@ -71,7 +72,7 @@ void TEST_Run(char count);
 int main(void) {
     configurePins();
 
-    TEST_Blink(4);
+    //TEST_Blink(4);
     //TEST_Run(2);  
     //TEST_Blink(2);  
 
@@ -82,14 +83,32 @@ int main(void) {
     sei();
 
     while(1) {
-/*
-        char i;
-        _delay_ms(100);
-        for (i=0; i<LEDs; i++) {
-            
-            if (LedStatus[i] >= 15) LedStatus[i] = 0;
+
+        char i, tmp;
+        _delay_ms(50);
+        tmp = LedStatus[0];
+        for (i=0; i<LEDs-1; i++) {
+            LedStatus[i] = LedStatus[i+1];
         }
-*/
+        LedStatus[LEDs-1] = tmp;
+        /*
+        for (i=0; i<LEDs; i++) {
+            if (i != LEDs-1) {
+                LedStatus[i] = (LedStatus[i] & 0x0F) | (LedStatus[i+1] & 0x0F);
+            } else {
+                LedStatus[i] = (LedStatus[i] & 0x0F) | (tmp & 0x0F);
+            }
+        }
+        tmp = LedStatus[LEDs-1];
+        for (i=LEDs-1; i>0; i--) {
+            if (i != 0) {
+                LedStatus[i] = (LedStatus[i] & 0xF0) | (LedStatus[i-1] & 0xF0);
+            } else {
+                LedStatus[i] = (LedStatus[i] & 0xF0) | (tmp & 0xF0);
+            }
+        }
+        */
+
     }
 
 }
@@ -99,38 +118,67 @@ int main(void) {
 /******************************************************************************/
 
 
+
 ISR(TIMER0_OVF_vect) {
-    static char cLed;
-    static char cCol;
-    char dlvl;
+    static uint8_t cColor;
+    static uint8_t shift;
+    static uint8_t step;
+    uint8_t i;
     
-    *LED[cLed].PORT &=~ (1<<LED[cLed].Pin);
-    cLed++;
-    if (cLed >= LEDs) {
-        cLed = 0;
-        if (cCol == 0) {
-            cCol = 1;
-            *COLOR[BLUE].PORT &=~ (1<<COLOR[BLUE].Pin);
-            *COLOR[PINK].PORT |= (1<<COLOR[PINK].Pin);
+    
+    if (step == 0x00) {
+        if (cColor == BLUE) {
+            cColor = PINK;
+            shift = 4;
         } else {
-            cCol = 0;
-            *COLOR[PINK].PORT &=~ (1<<COLOR[PINK].Pin);
-            *COLOR[BLUE].PORT |= (1<<COLOR[BLUE].Pin);
+            cColor = BLUE;
+            shift = 0;
         }
+        /* start - all leds with dimmlevel to ON */
+        for (i=0; i < COLs; i++) {
+            if (((LedStatus[i]>>shift) & 0x0F) != 0x00) {
+                *LED[i].PORT |= (1<<LED[i].Pin);
+            }
+        }
+        *COLOR[cColor].PORT |= (1<<COLOR[cColor].Pin);
+        step = 0x01;
+        TCNT0 = TIMER_START[cColor];
     }
-
-    if (cCol == 0) {
-        dlvl = dimmLevel[ (LedStatus[cLed] & 0x0F) ];
-    } else {
-        dlvl = dimmLevel[ (LedStatus[cLed] & 0xF0)>>4 ];
+    
+    if (step == 0x01) {
+        /* all leds with dimmlevel 1 to OFF */
+        for (i=0; i < COLs; i++) {
+            if (((LedStatus[i]>>shift) & 0x0F) == 0x01) {
+                *LED[i].PORT &=~ (1<<LED[i].Pin);
+            }
+        }
+        step = 0x02;
+        TCNT0 = TIMER_START[cColor];
     }
-
-    if (dlvl != 0) 
-        *LED[cLed].PORT |= (1<<LED[cLed].Pin);
-
-    TCNT0 = TIMER_START + dlvl;
+    
+    if (step == 0x02) {
+        /* all leds with dimmlevel 2 to OFF */
+        for (i=0; i < COLs; i++) {
+            if (((LedStatus[i]>>shift) & 0x0F) == 0x02) {
+                *LED[i].PORT &=~ (1<<LED[i].Pin);
+            }
+        }
+        step = 0x03;
+        TCNT0 = TIMER_START[cColor];
+    }
+    
+    if (step == 0x03) {
+        /* all leds with dimmlevel 3 to OFF */
+        for (i=0; i < COLs; i++) {
+            if (((LedStatus[i]>>shift) & 0x0F) == 0x03) {
+                *LED[i].PORT &=~ (1<<LED[i].Pin);
+            }
+        }
+        *COLOR[cColor].PORT &=~ (1<<COLOR[cColor].Pin);
+        step = 0x00;
+        TCNT0 = TIMER_START[cColor];
+    }
 }
-
 
 
 void configurePins(void) {
@@ -152,7 +200,7 @@ void configurePins(void) {
 void wait_sec(void){
     char i=0;    
     for (i=0; i<10; i++) {
-        _delay_ms(10);
+        _delay_ms(100);
     }
 }
 
